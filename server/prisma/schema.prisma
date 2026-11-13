@@ -1,0 +1,123 @@
+// Night Ops Scheduler — database schema (PostgreSQL).
+// Record shapes mirror the original LocalStorage records so the React app keeps the same contract.
+// Dates of work (startDate, deadline) stay "YYYY-MM-DD" strings: the scheduling rules compare them lexically.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  manager
+  developer
+}
+
+enum Priority {
+  Low
+  Medium
+  High
+}
+
+enum Status {
+  Opened
+  InProgress @map("In Progress")
+  Completed
+}
+
+model User {
+  id           String    @id
+  name         String
+  email        String    @unique
+  role         Role
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  onboardedAt  DateTime?
+
+  sessions       Session[]
+  resets         PasswordReset[]
+  managed        Project[]       @relation("ProjectManager")
+  memberships    ProjectMember[]
+  assignedTasks  Task[]          @relation("TaskAssignee")
+}
+
+model Session {
+  id         String   @id
+  tokenHash  String   @unique
+  userId     String
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  expiresAt  DateTime
+  userAgent  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordReset {
+  id        String    @id
+  tokenHash String    @unique
+  userId    String
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Project {
+  id          String   @id
+  name        String
+  description String   @default("")
+  startDate   String
+  deadline    String
+  managerId   String
+  joinCode    String   @unique
+  createdAt   DateTime @default(now())
+
+  manager User            @relation("ProjectManager", fields: [managerId], references: [id], onDelete: Cascade)
+  members ProjectMember[]
+  tasks   Task[]
+
+  @@index([managerId])
+}
+
+model ProjectMember {
+  projectId String
+  userId    String
+  joinedAt  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@index([userId])
+}
+
+model Task {
+  id          String    @id
+  title       String
+  description String    @default("")
+  projectId   String
+  assigneeId  String
+  startDate   String
+  deadline    String
+  priority    Priority
+  status      Status    @default(Opened)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee User    @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([assigneeId])
+}

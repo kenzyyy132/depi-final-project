@@ -1,11 +1,117 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Scheduling System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#090A0D" />
+    <title>Night Ops Scheduler</title>
+    <meta name="description" content="Night Ops Scheduler — plan projects, assign developers and catch overlapping work before it slips. One shared timeline for managers and developers." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='12' fill='%23090A0D'/%3E%3Ccircle cx='24' cy='24' r='13' fill='none' stroke='%23555B66' stroke-width='4' stroke-dasharray='9.5 2.2'/%3E%3Ccircle cx='24' cy='24' r='13' fill='none' stroke='%23D94B55' stroke-width='4' stroke-dasharray='9.5 72.2' transform='rotate(-90 24 24)'/%3E%3Ccircle cx='24' cy='24' r='3' fill='%23D94B55'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Kufi+Arabic:wght@500;600;700&family=Sora:wght@500;600;700&display=swap"
+    />
+    <script>
+      // Apply saved theme, language and motion before first paint (no flash).
+      (function () {
+        var d = document.documentElement;
+        function read(k, f) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? f : v; } catch (e) { return f; } }
+        var t = read('ss_theme', 'dark');
+        if (t === 'system') t = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        d.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+        var l = read('ss_lang', 'en') === 'ar' ? 'ar' : 'en';
+        d.lang = l; d.dir = l === 'ar' ? 'rtl' : 'ltr';
+        var u = read('ss_ui', {});
+        if (u && (u.motion === 'reduce' || u.motion === 'full')) d.setAttribute('data-motion', u.motion);
+      })();
+    </script>
+    <style>
+      #boot { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: #090A0D; color: #F2F3F5;
+        font-family: 'Inter', 'IBM Plex Sans Arabic', system-ui, sans-serif; opacity: 0; animation: boot-in 300ms 150ms ease-out forwards; }
+      [data-theme='light'] #boot { background: #F3F4F6; color: #17191F; }
+      #boot.out { animation: boot-out 420ms cubic-bezier(.2,.8,.2,1) forwards; }
+      #boot::before { content: ''; position: absolute; inset: 0; pointer-events: none;
+        background-image: linear-gradient(rgba(128,128,140,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(128,128,140,.07) 1px, transparent 1px);
+        background-size: 32px 32px; mask-image: radial-gradient(circle at 50% 50%, #000 0, transparent 60%); -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 0, transparent 60%); }
+      #boot::after { content: ''; position: absolute; width: 520px; height: 520px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(217,75,85,.16), transparent 62%); }
+      .b-wrap { position: relative; z-index: 1; display: grid; justify-items: center; gap: 28px; width: min(320px, 80vw); }
+      .b-ring circle.s { opacity: 0; transform-origin: 32px 32px; animation: seg 520ms cubic-bezier(.2,.8,.2,1) forwards; }
+      .b-ring circle.core { transform-origin: 32px 32px; animation: core 1.6s ease-in-out infinite; }
+      .b-bars { position: relative; width: 100%; height: 34px; }
+      .b-bars i { position: absolute; height: 6px; border-radius: 3px; background: #292C34; opacity: 0; animation: bar 700ms cubic-bezier(.2,.8,.2,1) forwards; }
+      [data-theme='light'] .b-bars i { background: #C4C7CE; }
+      .b-bars i:nth-child(1) { top: 0; inset-inline-start: 6%; width: 46%; animation-delay: 380ms; }
+      .b-bars i:nth-child(2) { top: 14px; inset-inline-start: 28%; width: 52%; animation-delay: 480ms; }
+      .b-bars i:nth-child(3) { top: 28px; inset-inline-start: 14%; width: 30%; animation-delay: 580ms; background: #A8323E !important; }
+      .b-now { position: absolute; top: -6px; bottom: -6px; width: 1px; background: #D94B55; box-shadow: 0 0 10px 1px rgba(217,75,85,.7);
+        inset-inline-start: 0; animation: sweep 1.8s cubic-bezier(.65,0,.35,1) 400ms infinite alternate; }
+      .b-track { width: 100%; height: 2px; border-radius: 2px; background: rgba(128,128,140,.2); overflow: hidden; }
+      .b-fill { height: 100%; width: 8%; background: linear-gradient(90deg, #A8323E, #D94B55); box-shadow: 0 0 8px rgba(217,75,85,.8); transition: width 400ms cubic-bezier(.2,.8,.2,1); }
+      .b-msg { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #8A909B; min-height: 20px; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+      [dir='rtl'] .b-msg { letter-spacing: 0; text-transform: none; font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; font-size: 14px; }
+      [data-theme='light'] .b-msg { color: #555B66; }
+      @keyframes boot-in { to { opacity: 1; } }
+      @keyframes boot-out { to { opacity: 0; transform: scale(1.04); visibility: hidden; } }
+      @keyframes seg { from { opacity: 0; transform: rotate(var(--r)) scale(.6); } to { opacity: 1; transform: rotate(var(--r)) scale(1); } }
+      @keyframes core { 50% { transform: scale(.7); opacity: .6; } }
+      @keyframes bar { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+      [dir='rtl'] .b-bars i { animation-name: bar-rtl; }
+      @keyframes bar-rtl { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+      @keyframes sweep { from { inset-inline-start: 4%; } to { inset-inline-start: 92%; } }
+      @media (prefers-reduced-motion: reduce) { #boot, #boot * { animation-duration: 1ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; } }
+    </style>
   </head>
   <body>
+    <div id="boot" role="status" aria-live="polite">
+      <div class="b-wrap">
+        <svg class="b-ring" width="88" height="88" viewBox="0 0 64 64" aria-hidden="true"></svg>
+        <div class="b-bars" aria-hidden="true"><i></i><i></i><i></i><span class="b-now"></span></div>
+        <div class="b-track" aria-hidden="true"><div class="b-fill"></div></div>
+        <div class="b-msg"></div>
+      </div>
+    </div>
+    <script>
+      // Boot sequence driven by real milestones. No artificial delay: if the app is ready quickly, the loader never appears.
+      (function () {
+        var el = document.getElementById('boot');
+        var ar = document.documentElement.lang === 'ar';
+        var msgs = ar
+          ? ['جارٍ تحميل الواجهة', 'استعادة جلستك', 'تجهيز جدولك', 'جاهز']
+          : ['Loading interface', 'Restoring your session', 'Preparing your schedule', 'Ready'];
+        var pct = [18, 52, 84, 100];
+        var svg = el.querySelector('.b-ring'), ns = 'http://www.w3.org/2000/svg', today = new Date().getDay();
+        for (var i = 0; i < 7; i++) {
+          var c = document.createElementNS(ns, 'circle');
+          c.setAttribute('class', 's'); c.setAttribute('cx', 32); c.setAttribute('cy', 32); c.setAttribute('r', 24);
+          c.setAttribute('fill', 'none'); c.setAttribute('stroke-width', 5); c.setAttribute('stroke-linecap', 'round');
+          c.setAttribute('stroke', i === today ? '#D94B55' : document.documentElement.dataset.theme === 'light' ? '#9AA0AB' : '#3A3E48');
+          c.setAttribute('stroke-dasharray', '17 133.8');
+          c.style.setProperty('--r', (i * 51.43 - 90 + 6) + 'deg');
+          c.style.animationDelay = i * 60 + 'ms';
+          if (i === today) c.style.filter = 'drop-shadow(0 0 4px rgba(217,75,85,.8))';
+          svg.appendChild(c);
+        }
+        var core = document.createElementNS(ns, 'circle');
+        core.setAttribute('class', 'core'); core.setAttribute('cx', 32); core.setAttribute('cy', 32); core.setAttribute('r', 4); core.setAttribute('fill', '#D94B55');
+        svg.appendChild(core);
+        var fill = el.querySelector('.b-fill'), msg = el.querySelector('.b-msg'), finished = false;
+        function step(n) { if (finished) return; fill.style.width = pct[n] + '%'; msg.textContent = msgs[n]; }
+        step(0);
+        window.__boot = {
+          step: step,
+          done: function () {
+            if (finished) return; step(3); finished = true;
+            var shown = getComputedStyle(el).opacity > 0.05;
+            if (!shown) { el.remove(); return; }
+            el.classList.add('out');
+            setTimeout(function () { el.remove(); }, 450);
+          },
+        };
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

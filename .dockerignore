@@ -1,0 +1,12 @@
+.git
+.claude
+node_modules
+server/node_modules
+dist
+coverage
+server/.local-db
+.env
+.env.*
+server/.env
+**/*.test.js
+**/*.test.jsx

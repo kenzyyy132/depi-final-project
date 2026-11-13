@@ -1,49 +1,51 @@
 import { useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import Calendar from '../components/Calendar';
-import { Card, Empty, Field } from '../components/ui';
-import { conflictPairs, range } from '../utils/scheduling';
-
-function Conflicts({ tasks }) {
-  const { userName } = useApp();
-  const pairs = conflictPairs(tasks);
-  if (!pairs.length) return null;
-  return (
-    <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-      <p className="flex items-center gap-1.5 font-medium"><AlertTriangle size={16} /> {pairs.length} scheduling conflict(s)</p>
-      <ul className="mt-1 list-disc pl-5">
-        {pairs.map(([a, b]) => <li key={a.id + b.id}>{userName(a.assigneeId)}: "{a.title}" ({range(a)}) overlaps "{b.title}" ({range(b)})</li>)}
-      </ul>
-    </div>
-  );
-}
+import { useI18n } from '../i18n/I18nProvider';
+import { Field } from '../components/ui';
+import Calendar from '../components/schedule/Calendar';
+import { ConflictBanner } from '../components/schedule/ConflictBanner';
+import { PageHeader } from '../components/domain/Common';
 
 export function TeamCalendar() {
-  const { myProjects, myTasks } = useApp();
+  const { myProjects, myTasks, users } = useApp();
+  const { t } = useI18n();
   const [pid, setPid] = useState('');
-  const tasks = myTasks.filter((t) => !pid || t.projectId === pid);
+  const tasks = myTasks.filter((x) => !pid || x.projectId === pid);
+  const scope = myProjects.filter((p) => !pid || p.id === pid);
+  const devs = users.filter((u) => scope.some((p) => p.memberIds.includes(u.id)));
   return (
-    <div className="space-y-4">
-      <Card className="max-w-xs"><Field as="select" label="Project" value={pid} onChange={(e) => setPid(e.target.value)}><option value="">All projects</option>{myProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Field></Card>
-      <Conflicts tasks={tasks} />
-      <Calendar tasks={tasks} />
-    </div>
+    <>
+      <PageHeader eyebrow={t('calendar.teamEyebrow')} title={t('nav.teamCalendar')} summary={t('calendar.teamSummary')}
+        actions={
+          <Field as="select" label={t('tasks.project')} value={pid} onChange={(e) => setPid(e.target.value)} className="w-full sm:w-56">
+            <option value="">{t('calendar.allProjects')}</option>
+            {myProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </Field>
+        } />
+      <div className="space-y-4 lg:space-y-5">
+        <ConflictBanner tasks={tasks} />
+        <Calendar
+          tasks={tasks}
+          allowReschedule
+          timelineRows={devs.map((u) => ({ id: u.id, label: u.name, person: u, sub: t('tasks.countShort', { count: tasks.filter((x) => x.assigneeId === u.id).length }) }))}
+          timelineRowOf={(x) => x.assigneeId}
+        />
+      </div>
+    </>
   );
 }
 
-export const MyCalendar = () => <Calendar tasks={useApp().myTasks} />;
-
-export function DeveloperSchedule() {
-  const { myProjects, myTasks, users } = useApp();
-  const [dev, setDev] = useState('');
-  const devs = users.filter((u) => myProjects.some((p) => p.memberIds.includes(u.id)));
-  if (!devs.length) return <Empty title="No developers yet" text="Developers appear here after they join one of your projects with its join code." />;
-  const tasks = myTasks.filter((t) => t.assigneeId === dev);
+export function MyCalendar() {
+  const { myTasks, myProjects } = useApp();
+  const { t } = useI18n();
   return (
-    <div className="space-y-4">
-      <Card className="max-w-xs"><Field as="select" label="Developer" value={dev} onChange={(e) => setDev(e.target.value)}><option value="">Select a developer</option>{devs.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</Field></Card>
-      {dev ? <><Conflicts tasks={tasks} /><Calendar tasks={tasks} /></> : <p className="text-sm text-slate-500">Choose a developer to see their schedule.</p>}
-    </div>
+    <>
+      <PageHeader eyebrow={t('calendar.myEyebrow')} title={t('nav.myCalendar')} summary={t('calendar.mySummary')} />
+      <Calendar
+        tasks={myTasks}
+        timelineRows={myProjects.map((p) => ({ id: p.id, label: p.name }))}
+        timelineRowOf={(x) => x.projectId}
+      />
+    </>
   );
 }
