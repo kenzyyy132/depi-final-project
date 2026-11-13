@@ -38,5 +38,8 @@
     "@prisma/client@6.19.3": true,
     "@prisma/engines@6.19.3": true,
     "@embedded-postgres/windows-x64@17.11.0-beta.19": true
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.2"
   }
 }
